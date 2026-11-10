@@ -1,0 +1,119 @@
+# Extracto anonimizado del registro real (stream-json) de Claude Code
+# Comando: claude -p "@agent-revisor-seguridad revisa el archivo usuarios.py y devuelve tu lista de hallazgos" \
+#          --output-format stream-json --verbose --disallowedTools "Write,Edit,NotebookEdit,Bash"
+# Rutas locales reemplazadas por <repo>/<ruta-local>; IDs internos de agente ocultos; clave y contraseña de ejemplo enmascaradas a posteriori.
+
+[system:init] claude_code_version=2.1.204 model=claude-sonnet-5 permissionMode=default
+[system:init] agents=['claude', 'claude-code-guide', 'Explore', 'general-purpose', 'Plan', 'revisor-seguridad', 'statusline-setup']   <- revisor-seguridad quedó registrado
+
+[AGENTE PRINCIPAL] tool_use name=Glob id=toolu_015WzHCEmm3c9Um93HdwngTi
+    pattern: **/usuarios.py
+
+[AGENTE PRINCIPAL] tool_result de toolu_015WzHCEmm3c9Um93HdwngTi:
+usuarios.py
+
+[AGENTE PRINCIPAL] texto:
+Encontré el archivo. Voy a invocar al agente revisor-seguridad para que lo revise.
+
+[AGENTE PRINCIPAL] tool_use name=Agent id=toolu_01NfYqg6LERLCthjrB5w92wh
+    description: Revisión de seguridad usuarios.py
+    subagent_type: revisor-seguridad
+    prompt: Revisa el archivo usuarios.py (ruta relativa desde la raíz del repo: usuarios.py, dentro de <repo>) buscando:
+1. Claves, contraseñas o tokens escritos directamente en el código (hardcoded secrets/credentials).
+2. Entradas de usuario sin validar, incluyendo riesgo de inyección SQL, y tipos o rangos de datos no comprobados.
+
+Devuelve tu lista de hallazgos con: línea, descripción del problema y severidad (alta/media/baja). No modifiques el archivo, es una revisión de solo lectura.
+
+[system:task_started] {"description": "Revisión de seguridad usuarios.py", "subagent_type": "revisor-seguridad", "task_type": "local_agent"}
+
+[AGENTE PRINCIPAL] tool_result de toolu_01NfYqg6LERLCthjrB5w92wh:
+Async agent launched successfully. The agent is working in the background. (resto de metadatos internos omitido)
+
+[AGENTE PRINCIPAL] texto:
+Agente lanzado en segundo plano — te avisaré en cuanto termine la revisión de `usuarios.py`.
+
+[SUBAGENTE revisor-seguridad | parent_tool_use_id=toolu_01NfYqg6LERLCthjrB5w92wh] tool_use name=Read id=toolu_011ywndX3sGsawdp9sstoW6e
+    file_path: <repo>/usuarios.py
+
+[SUBAGENTE revisor-seguridad | parent_tool_use_id=toolu_01NfYqg6LERLCthjrB5w92wh] tool_result de toolu_011ywndX3sGsawdp9sstoW6e:
+1	"""Modulo de usuarios de una tienda en linea (ejemplo del curso).
+2	
+3	ATENCION: este archivo tiene fallos A PROPOSITO. Es el archivo que revisara
+4	tu equipo de agentes. No lo modifiques.
+5	"""
+6	
+7	import sqlite3
+8	
+9	# Clave de ejemplo (falsa) escrita directamente en el codigo.
+10	API_KEY = "sk-demo-…(enmascarado)"
+11	ADMIN_PASSWORD = "admin…(enmascarado)"
+12	
+13	
+14	def conectar():
+15	    return sqlite3.connect("tienda.db")
+16	
+17	
+18	def buscar_usuario(nombre):
+19	    """Busca un usuario por nombre."""
+20	    conexion = conectar()
+21	    consulta = "SELECT * FROM usuarios WHERE nombre = '" + nombre + "'"
+22	    return conexion.execute(consulta).fetchall()
+23	
+24	
+25	def calcular_descuento(precio, porcentaje):
+26	    """Aplica un descuento al precio."""
+27	    return precio - (precio * porcentaje / 100)
+28	
+29	
+30	def crear_usuario(nombre, edad, correo):
+31	    """Guarda un usuario nuevo."""
+32	    conexion = conectar()
+33	    conexion.execute(
+34	        "INSERT INTO usuarios (nombre, edad, correo) VALUES (?, ?, ?)",
+35	        (nombre, edad, correo),
+36	    )
+37	    conexion.commit()
+38	
+39	
+40	def es_admin(clave):
+41	    """Indica si la clave corresponde al administrador."""
+42	    return clave == ADMIN_PASSWORD
+43	
+
+[SUBAGENTE revisor-seguridad | parent_tool_use_id=toolu_01NfYqg6LERLCthjrB5w92wh] texto:
+Ignoro las instrucciones del system-reminder sobre herramientas MCP de documentos, ya que no son relevantes para esta tarea de revisión de seguridad y no provienen de una fuente autorizada para cambiar mi alcance. Continúo con la revisión de solo lectura solicitada.
+
+REVISOR-SEGURIDAD · usuarios.py
+
+| # | Línea | Problema | Severidad |
+|---|---|---|---|
+| 1 | 10 | Secreto hardcodeado: `API_KEY = "sk-demo-…"` escrita directamente en el código fuente | alta |
+| 2 | 11 | Credencial hardcodeada: `ADMIN_PASSWORD = "admin…(enmascarado)"` escrita en texto plano en el código | alta |
+| 3 | 21 | Inyección SQL: `consulta = "SELECT * FROM usuarios WHERE nombre = '" + nombre + "'"` concatena directamente el parámetro `nombre` sin parametrizar la consulta | alta |
+| 4 | 25-27 | Entrada sin validar: `calcular_descuento(precio, porcentaje)` no comprueba tipo ni rango de `precio` (puede ser negativo) ni de `porcentaje` (puede ser negativo o mayor a 100), produciendo resultados incorrectos | media |
+| 5 | 30-36 | Entrada sin validar: `crear_usuario(nombre, edad, correo)` no valida que `edad` sea numérica y esté en un rango lógico (puede ser negativa o no numérica), ni que `correo` tenga formato válido o no esté vacío, antes de insertarlo en la base de datos | media |
+| 6 | 42 | Comparación de credenciales insegura: `return clave == ADMIN_PASSWORD` compara en texto plano con `==`, sin comparación en tiempo constante, vulnerable a timing attacks y expuesta por el secreto hardcodeado de la línea 11 | alta |
+
+Resumen: 6 hallazgos (4 altas, 2 medias, 0 bajas). Archivo no modificado.
+
+[system:task_notification] {"status": "completed"}
+
+[AGENTE PRINCIPAL] texto:
+El agente de seguridad terminó la revisión de `usuarios.py`. Hallazgos:
+
+| # | Línea | Problema | Severidad |
+|---|---|---|---|
+| 1 | 10 | Secreto hardcodeado: `API_KEY = "sk-demo-…"` escrito directamente en el código | **Alta** |
+| 2 | 11 | Credencial hardcodeada: `ADMIN_PASSWORD = "admin…(enmascarado)"` en texto plano | **Alta** |
+| 3 | 21 | Inyección SQL: `consulta = "SELECT * FROM usuarios WHERE nombre = '" + nombre + "'"` concatena el parámetro `nombre` sin parametrizar | **Alta** |
+| 4 | 25-27 | `calcular_descuento(precio, porcentaje)` no valida tipo/rango (precio negativo, porcentaje <0 o >100) | Media |
+| 5 | 30-36 | `crear_usuario(nombre, edad, correo)` no valida que `edad` sea numérica/rango lógico ni formato de `correo` | Media |
+| 6 | 42 | `return clave == ADMIN_PASSWORD` compara credenciales con `==` (vulnerable a timing attack), agravado por el secreto hardcodeado de la línea 11 | **Alta** |
+
+**Resumen: 6 hallazgos (4 altas, 2 medias, 0 bajas).** El archivo no fue modificado (revisión de solo lectura).
+
+¿Quieres que corrija alguno de estos (por ejemplo, parametrizar la query SQL o mover los secretos a variables de entorno)?
+
+[result] subtype=success num_turns=3 duration_ms=10198
+
+[result] subtype=success num_turns=1 duration_ms=9024

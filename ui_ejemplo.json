@@ -1,0 +1,26 @@
+{
+  "_aviso": "Ilustración didáctica; no es un mensaje A2UI estándar válido.",
+  "catalogo_permitido": {
+    "componentes": ["Card", "Text", "Badge", "Button"],
+    "eventos": ["pedir_revision"],
+    "urls_permitidas": []
+  },
+  "ui": {
+    "component": "Card",
+    "id": "hallazgo-usuarios-21",
+    "title": "Revisión de seguridad",
+    "children": [
+      { "component": "Text", "text": "Archivo: usuarios.py", "style": "body" },
+      { "component": "Text", "text": "Línea: 21", "style": "body" },
+      { "component": "Badge", "label": "Severidad: alta", "tone": "alta" },
+      { "component": "Text", "text": "Entrada sin validar: «nombre» se concatena en la consulta SQL (inyección SQL).", "style": "body" },
+      { "component": "Text", "text": "consulta = \"SELECT * FROM usuarios WHERE nombre = '\" + nombre + \"'\"", "style": "code" },
+      {
+        "component": "Button",
+        "label": "Solicitar revisión adicional",
+        "event": "pedir_revision",
+        "payload": { "hallazgo_id": "SEG-03", "archivo": "usuarios.py", "linea": 21, "severidad": "alta" }
+      }
+    ]
+  }
+}
