@@ -50,8 +50,20 @@ Hay que distinguir dos casos:
 - **(a) Falso:** el agente principal lee el archivo él mismo y responde «como si» fuera el especialista.
 - **(b) Real:** el harness **lanza otro agente** con su propio contexto, sus propias herramientas y su propio hilo.
 
-Mi evidencia muestra el caso **(b)**. Registro completo y anonimizado:
-[`evidencias/parte2_registro_delegacion.txt`](evidencias/parte2_registro_delegacion.txt). Las señales de delegación son:
+Mi evidencia muestra el caso **(b)**, en **dos ejecuciones independientes**:
+
+- **Ejecución 1, interactiva** (captura real de mi terminal en VS Code). Escribí `@` y elegí
+  `revisor-seguridad (agent)` del autocompletado. Claude Code muestra la línea `revisor-seguridad(Revisión de
+  seguridad de usuarios.py) · Backgrounded agent`, luego `Agent "Revisión de seguridad de usuarios.py" finished · 24s`
+  y, en el panel de agentes, `main` y `revisor-seguridad … 7.8k tokens` como **hilos separados**.
+
+![Claude Code reconoce el subagente](evidencias/parte2_registro.png)
+
+![Invocación y respuesta del subagente (captura real)](evidencias/parte2_llamada.png)
+
+- **Ejecución 2, headless con registro** (`claude -p … --output-format stream-json`). Registro completo y
+  anonimizado: [`evidencias/parte2_registro_delegacion.txt`](evidencias/parte2_registro_delegacion.txt).
+  Las señales de delegación en ese registro son:
 
 1. `[system:init] agents=[…, 'revisor-seguridad', …]`: la sesión **cargó** el subagente desde `.claude/agents/`.
 2. El agente principal llama a la herramienta **`Agent`** con `subagent_type: revisor-seguridad` (y le pasa un
@@ -63,7 +75,7 @@ Mi evidencia muestra el caso **(b)**. Registro completo y anonimizado:
 5. `[system:task_notification] {"status": "completed"}`: el subagente termina, y **después** el agente principal
    recibe y resume su resultado.
 
-![Invocación y respuesta del subagente](evidencias/parte2_llamada.png)
+![Registro de la delegación (ejecución headless)](evidencias/parte2_registro_delegacion.png)
 
 **Observación:** dentro de su hilo, el subagente también escribió que ignoraba unas instrucciones del entorno sobre
 herramientas de documentos que no venían al caso. Se mantuvo en su alcance (solo leer y revisar), que es justo lo
@@ -71,7 +83,7 @@ que pide su definición.
 
 ### Resultado del subagente y verificación manual
 
-Comparé cada hallazgo, línea por línea, con `usuarios.py` (42 líneas):
+Comparé cada hallazgo, línea por línea, con `usuarios.py` (42 líneas). Tabla de la ejecución headless:
 
 | # | Línea | Hallazgo del subagente | Severidad | ¿Existe en el código? |
 |---|---|---|---|---|
@@ -89,7 +101,16 @@ Comparé cada hallazgo, línea por línea, con `usuarios.py` (42 líneas):
   menciona que `nombre` tampoco se valida (vacío o longitud); (ii) `buscar_usuario` devuelve `SELECT *`, que puede
   exponer columnas sensibles (severidad baja). Sobre la severidad del 6, en mi opinión el riesgo principal es la
   contraseña fija; el ataque de tiempo es secundario.
-- **`git status` después de la ejecución:** solo aparece la carpeta nueva `.claude/` sin seguimiento;
+- **Comparación con la ejecución interactiva.** La captura real también da 6 hallazgos, pero **distintos**:
+  - separa la línea 30 en dos hallazgos (`edad`, media; `correo`, baja);
+  - baja la línea 42 a severidad *media*;
+  - **omite `calcular_descuento` (líneas 25-27)**, que la ejecución headless sí reportó.
+
+  Las líneas que cita existen, así que no inventó nada, pero **dejó fuera un hallazgo real**. Conclusión: con el
+  mismo archivo y la misma definición, el subagente **no es determinista**. Por eso el checkpoint humano y la
+  verificación contra el código son necesarios. En el flujo de [`equipo.md`](equipo.md), el orquestador o la
+  persona detectaría la omisión y pediría una corrección antes de aprobar el PR.
+- **`git status` después de las dos ejecuciones:** solo aparece la carpeta nueva `.claude/` sin seguimiento;
   **`usuarios.py` no aparece modificado** (también `git diff --stat usuarios.py` sale vacío).
 
 ```text
@@ -293,8 +314,11 @@ separado.
 Ejecución real: el registro ([`evidencias/parte2_registro_delegacion.txt`](evidencias/parte2_registro_delegacion.txt))
 muestra `revisor-seguridad` en los agentes del `init`, la llamada a `Agent` con `subagent_type: revisor-seguridad`,
 el evento `task_started` con `task_type: local_agent` y los mensajes del hilo con `parent_tool_use_id` (incluido su
-propio `Read`). Hallazgos reales: comparé las 6 líneas con el código (tabla de verificación de arriba), todas existen
-y no marcó como falso positivo el `INSERT` parametrizado. Si fallara (salida vacía, líneas inventadas, otro archivo),
+propio `Read`). En la captura interactiva se ven `Backgrounded agent`, `finished · 24s` y el hilo
+`revisor-seguridad` separado de `main`. Hallazgos reales: comparé cada línea con el código (tabla de verificación
+de arriba). Todas existen y no marcó como falso positivo el `INSERT` parametrizado. Pero la ejecución interactiva
+**omitió** `calcular_descuento` (líneas 25-27), lo que muestra que el resultado varía entre ejecuciones y hay que
+verificarlo siempre. Si fallara (salida vacía, líneas inventadas, otro archivo),
 lo reintentaría una vez recordándole el formato y el archivo; si siguiera fallando, revisaría la `description` (por
 si no se delega) y el cuerpo del agente, y en el checkpoint marcaría «seguridad: no verificada» en vez de aceptar el
 resultado.
