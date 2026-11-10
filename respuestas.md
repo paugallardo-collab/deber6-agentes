@@ -27,8 +27,12 @@ Programación Asistida de Aplicaciones · USFQ
 | **Invocación** | @-mención del subagente, que obliga a delegar: `@agent-revisor-seguridad revisa el archivo usuarios.py y devuelve tu lista de hallazgos` |
 | **Comando exacto usado** | `claude -p "@agent-revisor-seguridad revisa el archivo usuarios.py y devuelve tu lista de hallazgos" --output-format stream-json --verbose --disallowedTools "Write,Edit,NotebookEdit,Bash"` (desde la raíz del repo) |
 
-En modo interactivo es lo mismo: abrir `claude` en la raíz del repo, ver el agente con `/agents` y escribir
+En modo interactivo es lo mismo: abrir `claude` en la raíz del repo y escribir
 `@revisor-seguridad revisa usuarios.py` (el autocompletado inserta `@agent-revisor-seguridad`).
+**Nota sobre la versión:** en Claude Code 2.1.204 el asistente `/agents` **fue retirado**: al ejecutarlo responde
+*«The /agents wizard has been removed»* e indica crear o editar los subagentes directamente en `.claude/agents/`
+(proyecto) o `~/.claude/agents/` (usuario). Por eso comprobé el registro del subagente con el evento `system:init`
+de la sesión, que lista los agentes cargados, y con el autocompletado de `@` en modo interactivo.
 También se puede **nombrar** el subagente en el prompt («usa el subagente revisor-seguridad…»), pero entonces es
 Claude quien decide si delega. La @-mención **garantiza** la delegación.
 
