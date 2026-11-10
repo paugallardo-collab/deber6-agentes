@@ -88,7 +88,7 @@ Comparé cada hallazgo, línea por línea, con `usuarios.py` (42 líneas). Tabla
 | # | Línea | Hallazgo del subagente | Severidad | ¿Existe en el código? |
 |---|---|---|---|---|
 | 1 | 10 | Clave API escrita en el código (`API_KEY = "sk-demo-…"`) | alta | ✅ Línea 10, texto exacto |
-| 2 | 11 | Contraseña de admin en texto plano (`ADMIN_PASSWORD = "admin123"`) | alta | ✅ Línea 11, texto exacto |
+| 2 | 11 | Contraseña de admin en texto plano (`ADMIN_PASSWORD = "admin…"`) | alta | ✅ Línea 11 (valor enmascarado por mí, ver nota) |
 | 3 | 21 | Inyección SQL: `nombre` concatenado en el `SELECT` | alta | ✅ Línea 21: `"... WHERE nombre = '" + nombre + "'"` |
 | 4 | 25-27 | `calcular_descuento` sin validar tipo ni rango de `precio` y `porcentaje` | media | ✅ Línea 27 opera sin ninguna comprobación |
 | 5 | 30-36 | `crear_usuario` sin validar `edad` ni el formato de `correo` | media | ✅ Se insertan tal cual (líneas 33-36) |
@@ -96,7 +96,16 @@ Comparé cada hallazgo, línea por línea, con `usuarios.py` (42 líneas). Tabla
 
 - **No inventó nada:** las 6 líneas existen y los fragmentos coinciden. Además **acertó en no marcar**
   `crear_usuario` como inyección SQL, porque ese `INSERT` sí usa parámetros `?`.
-- **Enmascaró** la clave API (`sk-demo-…`), como pedía su instrucción.
+- **Enmascarado incompleto (desviación del subagente).** Enmascaró la clave API (`sk-demo-…`), como pedía su
+  instrucción, pero en **las dos ejecuciones repitió completa la contraseña de ejemplo de la línea 11**. Es un valor
+  ficticio de la plantilla, así que no se expuso ninguna credencial real. Aun así, **incumplió su propio límite**:
+  la instrucción decía «no repitas el valor completo de un secreto», pero el único ejemplo que daba era una clave API,
+  y el modelo no lo aplicó a la contraseña.
+  - **Qué hice:** enmascaré ese valor (`admin…`) en todo lo que publiqué: este documento, `equipo.md`, el registro
+    `.txt` y las capturas (en la real, con un recuadro).
+  - **Mejora para la siguiente versión del subagente:** decir explícitamente «enmascara claves, tokens **y
+    contraseñas**, incluidas las que aparecen en comparaciones», y que el orquestador rechace cualquier salida que
+    contenga un literal asignado a una variable `*_PASSWORD`, `*_KEY` o `*_TOKEN`.
 - **¿Falta algo evidente?** Nada grave. Omisiones menores que agregaría en el checkpoint: (i) en el hallazgo 5 no
   menciona que `nombre` tampoco se valida (vacío o longitud); (ii) `buscar_usuario` devuelve `SELECT *`, que puede
   exponer columnas sensibles (severidad baja). Sobre la severidad del 6, en mi opinión el riesgo principal es la
@@ -140,10 +149,15 @@ nothing added to commit but untracked files present (use "git add" to track)
   4. **Leer no es inofensivo:** lo que el subagente lee entra en su contexto y en su respuesta (por eso le pedí
      enmascarar los secretos).
 - **Mitigaciones que apliqué:**
-  - ejecuté la sesión principal con `--disallowedTools "Write,Edit,NotebookEdit,Bash"`, de modo que **tampoco el
-    orquestador** podía escribir ni ejecutar comandos durante la revisión;
-  - revisé `git status` y `git diff --stat usuarios.py` al terminar;
-  - revisé el registro para confirmar qué herramientas usó cada hilo.
+  - ejecuté la sesión principal con `--disallowedTools "Write,Edit,NotebookEdit,Bash"`, que **bloquea solo esas
+    cuatro herramientas**. **No es un modo de solo lectura total:** según el evento `system:init`, la sesión
+    conservaba otras herramientas que en principio podrían cambiar algo, por ejemplo `Task` (lanzar otros agentes),
+    `EnterWorktree` (crea un worktree en disco) y `ToolSearch` (carga más herramientas bajo demanda, como las de
+    servidores MCP). Por eso **no afirmo** que el orquestador no pudiera escribir;
+  - lo que sí comprobé es el **resultado**: al terminar, `git status` y `git diff --stat usuarios.py` mostraron que
+    **`usuarios.py` no se modificó**;
+  - revisé el registro para confirmar qué herramientas usó cada hilo: el orquestador usó `Glob` y `Agent`, y el
+    subagente solo `Read`.
 
   En modo interactivo, la alternativa es `/permissions` o el modo plan (`--permission-mode plan`).
 
@@ -298,6 +312,32 @@ Solo entonces crea la solicitud de revisión, por ejemplo asignando un revisor h
 
 ---
 
+## Evidencias
+
+Las cinco capturas obligatorias, más dos de apoyo de la Parte 2, enlazadas con rutas relativas:
+
+| Parte | Captura | Qué muestra |
+|---|---|---|
+| 1 | [`evidencias/parte1_flujo.png`](evidencias/parte1_flujo.png) | Diagrama del flujo en paralelo con el checkpoint humano |
+| 2 | [`evidencias/parte2_subagente.png`](evidencias/parte2_subagente.png) | Archivo completo del subagente `revisor-seguridad` |
+| 2 | [`evidencias/parte2_llamada.png`](evidencias/parte2_llamada.png) | Invocación y respuesta (captura real de la terminal) |
+| 2 | [`evidencias/parte2_registro.png`](evidencias/parte2_registro.png) | Claude Code lista `revisor-seguridad (agent)` (apoyo) |
+| 2 | [`evidencias/parte2_registro_delegacion.png`](evidencias/parte2_registro_delegacion.png) | Registro de la delegación en la ejecución headless (apoyo) |
+| 3 | [`evidencias/parte3_a2a.png`](evidencias/parte3_a2a.png) | Agent Card ilustrativa y secuencia A2A |
+| 4 | [`evidencias/parte4_interfaz.png`](evidencias/parte4_interfaz.png) | Boceto de la tarjeta declarativa |
+
+Las capturas de las Partes 2 y 4 ya aparecen en sus secciones. Las de las Partes 1 y 3, que se explican en
+[`equipo.md`](equipo.md), se muestran también aquí:
+
+![Flujo del equipo (Parte 1)](evidencias/parte1_flujo.png)
+
+![Agent Card y secuencia A2A (Parte 3)](evidencias/parte3_a2a.png)
+
+En las capturas y el registro publicados, los valores de ejemplo de `usuarios.py` (clave API y contraseña) están
+enmascarados, y las rutas locales, anonimizadas.
+
+---
+
 ## Preguntas finales
 
 **1. ¿Por qué dos especialistas y no uno solo? ¿Qué mejora y qué costo agrega?**
@@ -327,9 +367,12 @@ resultado.
 `tools: Read, Grep, Glob`: solo leer y buscar, sin `Write`, `Edit`, `NotebookEdit` ni `Bash`. Claude Code **sí
 impone** esa lista al subagente. **No garantiza**: (a) que lea **solo** `usuarios.py`, porque `Read` puede abrir
 otros archivos y ese límite es una instrucción; (b) los permisos del **orquestador**, que no hereda la restricción;
-(c) que no repita secretos en la salida (se lo pedí, pero depende del modelo). Mitigué con
-`--disallowedTools "Write,Edit,NotebookEdit,Bash"` en la sesión principal, revisando `git status` y
-`git diff usuarios.py` al final, y revisando en el registro qué herramientas se usaron.
+(c) que no repita secretos en la salida: se lo pedí, pero depende del modelo, y de hecho **enmascaró la clave API y
+repitió completa la contraseña de ejemplo**. Mitigué bloqueando `Write,Edit,NotebookEdit,Bash` con
+`--disallowedTools` en la sesión principal. Eso bloquea **solo esas herramientas, no todas**: la sesión conservaba
+otras, como `Task` o las que se cargan con `ToolSearch`. Por eso lo que afirmo es lo que **comprobé**: `git status` y
+`git diff usuarios.py` muestran que **`usuarios.py` no se modificó**, y el registro muestra qué herramientas usó cada
+hilo.
 
 **4. ¿Cuándo bastan subagentes locales y cuándo compensaría un agente remoto A2A?**
 **Bastan los locales** cuando todo ocurre dentro de mi herramienta, mi repo y mi equipo: tareas cortas, mismos

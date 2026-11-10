@@ -52,7 +52,7 @@ la **salida esperada** del Especialista 2, que en este deber está solo diseñad
 | Origen | Línea | Hallazgo o caso de prueba | Severidad / qué verifica |
 |---|---|---|---|
 | Seguridad | 10 | Clave API escrita en el código: `API_KEY = "sk-demo-…"` | alta |
-| Seguridad | 11 | Contraseña de administrador en texto plano: `ADMIN_PASSWORD = "admin123"` | alta |
+| Seguridad | 11 | Contraseña de administrador en texto plano: `ADMIN_PASSWORD = "admin…"` | alta |
 | Seguridad | 21 | Inyección SQL: `nombre` se concatena dentro del `SELECT` | alta |
 | Seguridad | 25-27 | `calcular_descuento` no valida tipo ni rango de `precio` y `porcentaje` | media |
 | Seguridad | 30-36 | `crear_usuario` no valida `edad` (tipo y rango) ni el formato de `correo` | media |

@@ -1,7 +1,7 @@
 # Extracto anonimizado del registro real (stream-json) de Claude Code
 # Comando: claude -p "@agent-revisor-seguridad revisa el archivo usuarios.py y devuelve tu lista de hallazgos" \
 #          --output-format stream-json --verbose --disallowedTools "Write,Edit,NotebookEdit,Bash"
-# Rutas locales reemplazadas por <repo>/<ruta-local>; IDs internos de agente ocultos; clave de ejemplo enmascarada.
+# Rutas locales reemplazadas por <repo>/<ruta-local>; IDs internos de agente ocultos; clave y contraseña de ejemplo enmascaradas a posteriori.
 
 [system:init] claude_code_version=2.1.204 model=claude-sonnet-5 permissionMode=default
 [system:init] agents=['claude', 'claude-code-guide', 'Explore', 'general-purpose', 'Plan', 'revisor-seguridad', 'statusline-setup']   <- revisor-seguridad quedó registrado
@@ -46,7 +46,7 @@ Agente lanzado en segundo plano — te avisaré en cuanto termine la revisión d
 8	
 9	# Clave de ejemplo (falsa) escrita directamente en el codigo.
 10	API_KEY = "sk-demo-…(enmascarado)"
-11	ADMIN_PASSWORD = "admin123"
+11	ADMIN_PASSWORD = "admin…(enmascarado)"
 12	
 13	
 14	def conectar():
@@ -88,7 +88,7 @@ REVISOR-SEGURIDAD · usuarios.py
 | # | Línea | Problema | Severidad |
 |---|---|---|---|
 | 1 | 10 | Secreto hardcodeado: `API_KEY = "sk-demo-…"` escrita directamente en el código fuente | alta |
-| 2 | 11 | Credencial hardcodeada: `ADMIN_PASSWORD = "admin123"` escrita en texto plano en el código | alta |
+| 2 | 11 | Credencial hardcodeada: `ADMIN_PASSWORD = "admin…(enmascarado)"` escrita en texto plano en el código | alta |
 | 3 | 21 | Inyección SQL: `consulta = "SELECT * FROM usuarios WHERE nombre = '" + nombre + "'"` concatena directamente el parámetro `nombre` sin parametrizar la consulta | alta |
 | 4 | 25-27 | Entrada sin validar: `calcular_descuento(precio, porcentaje)` no comprueba tipo ni rango de `precio` (puede ser negativo) ni de `porcentaje` (puede ser negativo o mayor a 100), produciendo resultados incorrectos | media |
 | 5 | 30-36 | Entrada sin validar: `crear_usuario(nombre, edad, correo)` no valida que `edad` sea numérica y esté en un rango lógico (puede ser negativa o no numérica), ni que `correo` tenga formato válido o no esté vacío, antes de insertarlo en la base de datos | media |
@@ -104,7 +104,7 @@ El agente de seguridad terminó la revisión de `usuarios.py`. Hallazgos:
 | # | Línea | Problema | Severidad |
 |---|---|---|---|
 | 1 | 10 | Secreto hardcodeado: `API_KEY = "sk-demo-…"` escrito directamente en el código | **Alta** |
-| 2 | 11 | Credencial hardcodeada: `ADMIN_PASSWORD = "admin123"` en texto plano | **Alta** |
+| 2 | 11 | Credencial hardcodeada: `ADMIN_PASSWORD = "admin…(enmascarado)"` en texto plano | **Alta** |
 | 3 | 21 | Inyección SQL: `consulta = "SELECT * FROM usuarios WHERE nombre = '" + nombre + "'"` concatena el parámetro `nombre` sin parametrizar | **Alta** |
 | 4 | 25-27 | `calcular_descuento(precio, porcentaje)` no valida tipo/rango (precio negativo, porcentaje <0 o >100) | Media |
 | 5 | 30-36 | `crear_usuario(nombre, edad, correo)` no valida que `edad` sea numérica/rango lógico ni formato de `correo` | Media |
